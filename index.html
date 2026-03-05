@@ -299,7 +299,7 @@
                 const stSnap = await getDoc(stRef);
 
                 if (stSnap.exists()) {
-                    currentStudent = { id: stSnap.id, ...stSnap.data() };
+                    currentStudent = { id: stSnap.id, uid: stSnap.id, ...stSnap.data() };
                     loggedTeacherId = tCode;
                     sessionStorage.setItem('ptec_parent_session', JSON.stringify({ tid: tCode, sid: sId }));
                     
@@ -339,12 +339,24 @@
         async function loadStudentData() {
             const year = document.getElementById('scoreYear').value || '2025-2026';
             scoresCache = {};
+            
             await Promise.all(monthsOrder.map(async (month) => {
                 const docId = `${year}_${month}`;
                 let monthData = {};
+                
+                // ព្យាយាមទាញយកពី Path ថ្មី
                 const sRefNew = doc(db, 'artifacts', PTEC_APP_ID, 'users', loggedTeacherId, 'scores', docId);
                 const snapNew = await getDoc(sRefNew).catch(()=>null);
-                if (snapNew && snapNew.exists()) monthData = snapNew.data();
+                
+                if (snapNew && snapNew.exists()) {
+                    monthData = snapNew.data();
+                } else {
+                    // បើរកមិនឃើញ ព្យាយាមទាញយកពី Path ចាស់ (Fallback)
+                    const oldSnap = await getDoc(doc(db, "scores", docId)).catch(()=>null);
+                    if (oldSnap && oldSnap.exists()) {
+                        monthData = oldSnap.data();
+                    }
+                }
                 scoresCache[month] = monthData;
             }));
 
@@ -385,7 +397,11 @@
         window.renderScores = function() {
             if (!currentStudent) return;
             const month = document.getElementById('scoreMonth').value;
-            const myScores = (scoresCache[month] || {})[currentStudent.id] || {};
+            const allMonthScores = scoresCache[month] || {};
+            
+            // ប្រើទាំង ID និង UID ដើម្បីធានាថាមិនបាត់ទិន្នន័យ
+            const myScores = allMonthScores[currentStudent.id] || allMonthScores[currentStudent.uid] || {};
+            
             const listEl = document.getElementById('subjectScoresList');
             let html = '', total = 0, count = 0;
 
@@ -412,7 +428,9 @@
         function renderTrendChart() {
             const ctx = document.getElementById('trendChart').getContext('2d');
             let dataPoints = monthsOrder.map(m => {
-                const myS = (scoresCache[m] || {})[currentStudent.id];
+                const allMonthScores = scoresCache[m] || {};
+                const myS = allMonthScores[currentStudent.id] || allMonthScores[currentStudent.uid];
+                
                 if (!myS) return null;
                 let sum = 0, count = 0;
                 subjectsConfig.forEach(c => { const v = parseFloat(myS[c.key]); if(!isNaN(v)) { sum += v; count++; } });
