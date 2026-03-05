@@ -410,15 +410,29 @@
                 // Parents browse anonymously
                 await signInAnonymously(auth);
                 
-                // Check if already logged in via session storage
-                const savedSession = sessionStorage.getItem('ptec_parent_session');
-                if (savedSession) {
-                    const data = JSON.parse(savedSession);
-                    document.getElementById('loginTeacherCode').value = data.tid;
-                    document.getElementById('loginStudentId').value = data.sid;
+                // === មុខងារចាប់យកទិន្នន័យពី QR Code URL ===
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlTid = urlParams.get('tid');
+                const urlSid = urlParams.get('sid');
+                
+                if (urlTid && urlSid) {
+                    // ប្រសិនបើមានទិន្នន័យនៅក្នុង Link (មកពីការស្កេន QR Code)
+                    document.getElementById('loginTeacherCode').value = urlTid;
+                    document.getElementById('loginStudentId').value = urlSid;
+                    
+                    // ដំណើរការលោតចូលដោយស្វ័យប្រវត្តិ
                     window.authenticateParent();
                 } else {
-                    document.getElementById('globalLoader').style.display = 'none';
+                    // Check if already logged in via session storage (ករណីមិនមែនមកពី QR Code)
+                    const savedSession = sessionStorage.getItem('ptec_parent_session');
+                    if (savedSession) {
+                        const data = JSON.parse(savedSession);
+                        document.getElementById('loginTeacherCode').value = data.tid;
+                        document.getElementById('loginStudentId').value = data.sid;
+                        window.authenticateParent();
+                    } else {
+                        document.getElementById('globalLoader').style.display = 'none';
+                    }
                 }
             } catch (error) {
                 console.error("Auth init failed", error);
@@ -471,6 +485,9 @@
                     document.getElementById('dashboardScreen').style.display = 'flex';
                     document.getElementById('bottomNav').style.display = 'flex';
                     document.getElementById('btnLogout').classList.remove('hidden');
+                    
+                    // លុប Parameters ចេញពី URL ខាងលើដើម្បីឲ្យមើលទៅស្អាត (Optional)
+                    window.history.replaceState({}, document.title, window.location.pathname);
                     
                 } else {
                     errorDiv.innerText = "រកមិនឃើញទិន្នន័យ! សូមពិនិត្យលេខកូដ និងអត្តលេខឡើងវិញ។";
