@@ -318,8 +318,8 @@
             </div>
             
             <div class="bg-gray-50 p-2 rounded-2xl border-2 border-dashed border-[#0054a6]">
-                <!-- កន្លែងបង្ហាញកាមេរ៉ា -->
-                <div id="reader" class="w-full h-64 bg-black rounded-xl overflow-hidden relative"></div>
+                <!-- កន្លែងបង្ហាញកាមេរ៉ា (បានប្តូរទៅជា aspect-square ឱ្យរាងការេ) -->
+                <div id="reader" class="w-full aspect-square bg-black rounded-xl overflow-hidden relative"></div>
             </div>
         </div>
     </div>
@@ -379,7 +379,8 @@
                 if (urlTid && urlSid) {
                     await window.authenticateParent();
                 } else {
-                    const savedSession = sessionStorage.getItem('ptec_parent_session');
+                    // ប្រើ localStorage ជំនួស sessionStorage ដើម្បីរក្សាទុកការចូល
+                    const savedSession = localStorage.getItem('ptec_parent_session');
                     if (savedSession) {
                         const data = JSON.parse(savedSession);
                         document.getElementById('loginTeacherCode').value = data.tid;
@@ -489,7 +490,9 @@
                 if (stSnap.exists()) {
                     currentStudent = { id: stSnap.id, uid: stSnap.id, ...stSnap.data() };
                     loggedTeacherId = tCode;
-                    sessionStorage.setItem('ptec_parent_session', JSON.stringify({ tid: tCode, sid: sId }));
+                    
+                    // ប្រើ localStorage ដើម្បីកុំឱ្យបាត់ពេលបិទ web
+                    localStorage.setItem('ptec_parent_session', JSON.stringify({ tid: tCode, sid: sId }));
                     
                     await loadStudentData();
                     setupDashboard();
@@ -960,7 +963,8 @@
         }
 
         window.logout = function() {
-            sessionStorage.removeItem('ptec_parent_session');
+            // លុបពី localStorage វិញពេលចុចចេញ
+            localStorage.removeItem('ptec_parent_session');
             currentStudent = null; loggedTeacherId = null;
             document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('dashboardScreen').style.display = 'none'; document.getElementById('bottomNav').style.display = 'none'; document.getElementById('headerActions').classList.add('hidden');
             document.getElementById('loginTeacherCode').value = ''; document.getElementById('loginStudentId').value = '';
