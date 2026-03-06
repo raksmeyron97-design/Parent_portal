@@ -12,9 +12,9 @@
 
     <style>
         :root { --primary: #0054a6; --primary-light: #e0f2fe; --bg-color: #f4f7f9; }
-        body { font-family: 'Battambang', cursive; background-color: var(--bg-color); min-height: 100vh; margin: 0; color: #1e293b; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Battambang', cursive; background-color: var(--bg-color); min-height: 100vh; margin: 0; color: #1e293b; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         .kh-moul { font-family: 'Moul', cursive; font-weight: normal; }
-        .app-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; display: flex; flex-direction: column; }
+        .app-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; display: flex; flex-direction: column; overflow-x: hidden; }
         .glass-header { background: rgba(0, 84, 166, 0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
         .input-field { width: 100%; padding: 1rem 1.25rem; border-radius: 1rem; border: 1.5px solid #e2e8f0; outline: none; background: #f8fafc; font-weight: 700; color: #1e293b; transition: all 0.3s ease; font-size: 1rem; }
         .input-field:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.1); }
@@ -30,6 +30,15 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.4s ease forwards; }
         #globalLoader { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        
+        /* Homework grid styles */
+        .hw-day { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 0.5rem; padding: 0.5rem; }
+        .hw-day.empty { background: #f8fafc; border-color: #f1f5f9; opacity: 0.5; }
+
+        /* Notification Panel Animation */
+        #notifPanel { transition: transform 0.3s ease-in-out; }
+        .notif-open { transform: translateX(0); }
+        .notif-closed { transform: translateX(100%); }
     </style>
 </head>
 <body>
@@ -51,9 +60,22 @@
                         <p class="text-[10px] text-blue-100 font-bold uppercase tracking-wider">Parent Portal</p>
                     </div>
                 </div>
-                <button id="btnLogout" onclick="logout()" class="hidden bg-white/20 hover:bg-white/30 p-2 rounded-full transition">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                </button>
+                
+                <!-- Action Buttons Container -->
+                <div id="headerActions" class="hidden flex items-center gap-2">
+                    <!-- Bell Icon for Notifications -->
+                    <div class="relative">
+                        <button onclick="toggleNotifications()" class="bg-white/20 hover:bg-white/30 p-2 rounded-full transition relative">
+                            <i data-lucide="bell" class="w-5 h-5"></i>
+                            <!-- Notification Badge (Red Dot) -->
+                            <span id="notifBadge" class="hidden absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-[#0054a6] rounded-full"></span>
+                        </button>
+                    </div>
+                    
+                    <button id="btnLogout" onclick="logout()" class="bg-white/20 hover:bg-white/30 p-2 rounded-full transition">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -97,14 +119,30 @@
 
             <section id="dashboardScreen" class="hidden h-full flex-col">
                 <div id="tab-profile" class="tab-content p-4 space-y-4 animate-slide-up">
+                    
+                    <!-- 1. Today's Attendance Card -->
+                    <div id="todayAttendanceCard" class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div id="todayAttIcon" class="w-12 h-12 rounded-full flex items-center justify-center bg-gray-100">
+                                <i data-lucide="calendar" class="w-6 h-6 text-gray-500"></i>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wide">វត្តមានថ្ងៃនេះ</p>
+                                <p id="todayAttText" class="font-bold text-sm text-gray-700">មិនទាន់មានទិន្នន័យ</p>
+                            </div>
+                        </div>
+                        <span id="todayAttDate" class="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg"></span>
+                    </div>
+
+                    <!-- Profile Info -->
                     <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex items-center gap-5 relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                         <img id="stPhoto" src="" class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md bg-gray-100 z-10">
-                        <div class="z-10">
-                            <h2 class="kh-moul text-lg text-gray-800" id="stName">ឈ្មោះសិស្ស</h2>
-                            <p class="text-sm font-bold text-[#0054a6] mb-1">ID: <span id="stId">000</span></p>
-                            <div class="flex items-center gap-2 text-xs text-gray-500 font-medium">
-                                <span id="stGender" class="bg-gray-100 px-2 py-0.5 rounded">ភេទ</span> • 
+                        <div class="z-10 w-full">
+                            <h2 class="kh-moul text-lg text-gray-800 leading-tight mb-1" id="stName">ឈ្មោះសិស្ស</h2>
+                            <p class="text-sm font-bold text-[#0054a6] mb-2">ID: <span id="stId">000</span></p>
+                            <div class="flex items-center gap-2 text-xs text-gray-500 font-medium flex-wrap">
+                                <span id="stGender" class="bg-gray-100 px-2 py-0.5 rounded">ភេទ</span>
                                 <span id="stAge" class="bg-gray-100 px-2 py-0.5 rounded">អាយុ</span>
                             </div>
                         </div>
@@ -116,7 +154,14 @@
                             <div class="flex justify-between"><span class="text-gray-500">ថ្ងៃខែឆ្នាំកំណើត៖</span> <span class="font-bold text-gray-800" id="stDob">-</span></div>
                             <div class="flex justify-between"><span class="text-gray-500">ឪពុក៖</span> <span class="font-bold text-gray-800" id="stFather">-</span></div>
                             <div class="flex justify-between"><span class="text-gray-500">ម្តាយ៖</span> <span class="font-bold text-gray-800" id="stMother">-</span></div>
-                            <div class="flex flex-col gap-1 mt-2 pt-2 border-t border-dashed">
+                            
+                            <!-- 3. Seating Plan -->
+                            <div class="flex justify-between items-center mt-2 pt-3 border-t border-dashed">
+                                <span class="text-gray-500 flex items-center gap-1"><i data-lucide="layout" class="w-4 h-4"></i> ប្លង់កន្លែងអង្គុយ៖</span> 
+                                <span class="font-bold text-[#0054a6] bg-blue-50 px-3 py-1 rounded-lg" id="stSeat">មិនទាន់រៀបចំ</span>
+                            </div>
+                            
+                            <div class="flex flex-col gap-1 mt-2 pt-3 border-t border-dashed">
                                 <span class="text-gray-500">អាសយដ្ឋាន៖</span> 
                                 <span class="font-bold text-gray-800 leading-relaxed" id="stAddress">-</span>
                             </div>
@@ -134,30 +179,45 @@
                 <div id="tab-scores" class="tab-content hidden p-4 space-y-4 animate-slide-up">
                     <div class="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
                         <select id="scoreYear" class="input-field py-2.5 px-3 text-sm bg-transparent border-none w-1/2" onchange="changeYear()">
-                            <option value="2025-2026">២០២៥-២០២៦</option>
+                            <option value="2024-2025">២០២៤-២០២៥</option>
+                            <option value="2025-2026" selected>២០២៥-២០២៦</option>
                             <option value="2026-2027">២០២៦-២០២៧</option>
-                            <option value="2027-2028">២០២៧-២០២៨</option>
                         </select>
                         <div class="w-px h-8 bg-gray-200"></div>
                         <select id="scoreMonth" class="input-field py-2.5 px-3 text-sm bg-transparent border-none w-1/2" onchange="renderScores()"></select>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-gradient-to-br from-blue-500 to-[#0054a6] p-4 rounded-3xl text-white shadow-md relative overflow-hidden">
-                            <i data-lucide="calculator" class="absolute -right-2 -bottom-2 w-16 h-16 text-white/10"></i>
-                            <p class="text-xs font-bold text-blue-100 uppercase tracking-wider mb-1">មធ្យមភាគ</p>
-                            <p class="text-3xl font-black" id="scoreAvg">0.00</p>
+                    <!-- 2. Rank Included in Grid -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-gradient-to-br from-blue-500 to-[#0054a6] p-3 rounded-2xl text-white shadow-md relative overflow-hidden">
+                            <p class="text-[10px] font-bold text-blue-100 uppercase tracking-wider mb-1">មធ្យមភាគ</p>
+                            <p class="text-2xl font-black" id="scoreAvg">0.00</p>
                         </div>
-                        <div class="bg-gradient-to-br from-green-400 to-green-600 p-4 rounded-3xl text-white shadow-md relative overflow-hidden">
-                            <i data-lucide="award" class="absolute -right-2 -bottom-2 w-16 h-16 text-white/10"></i>
-                            <p class="text-xs font-bold text-green-100 uppercase tracking-wider mb-1">និទ្ទេស</p>
-                            <p class="text-3xl font-black" id="scoreGrade">F</p>
+                        <div class="bg-gradient-to-br from-green-400 to-green-600 p-3 rounded-2xl text-white shadow-md relative overflow-hidden">
+                            <p class="text-[10px] font-bold text-green-100 uppercase tracking-wider mb-1">និទ្ទេស</p>
+                            <p class="text-2xl font-black" id="scoreGrade">F</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-700 p-3 rounded-2xl text-white shadow-md relative overflow-hidden">
+                            <p class="text-[10px] font-bold text-purple-100 uppercase tracking-wider mb-1">ចំណាត់ថ្នាក់</p>
+                            <p class="text-2xl font-black" id="scoreRank">-</p>
                         </div>
                     </div>
 
                     <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
                         <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2"><i data-lucide="book-open" class="w-4 h-4 text-orange-500"></i> ពិន្ទុតាមមុខវិជ្ជា</h3>
                         <div class="score-list" id="subjectScoresList"></div>
+                    </div>
+
+                    <!-- 4. Homework Section -->
+                    <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="edit-3" class="w-4 h-4 text-pink-500"></i> កិច្ចការផ្ទះ</h3>
+                            <span class="text-xs font-bold bg-pink-50 text-pink-600 px-2 py-1 rounded-lg" id="hwTotalScore">សរុប: 0</span>
+                        </div>
+                        <div id="homeworkList" class="grid grid-cols-5 gap-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                        <p id="homeworkEmpty" class="text-center text-xs text-gray-400 py-3 hidden">មិនមានកត់ត្រាពិន្ទុកិច្ចការផ្ទះសម្រាប់ខែនេះទេ</p>
                     </div>
                 </div>
 
@@ -196,6 +256,24 @@
                 </div>
 
             </section>
+            
+            <!-- Notifications Panel (Sliding Sidebar) -->
+            <div id="notifPanel" class="absolute inset-y-0 right-0 w-full sm:w-80 bg-white shadow-[-5px_0_20px_rgba(0,0,0,0.1)] z-40 notif-closed flex flex-col">
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
+                    <h3 class="kh-moul text-[#0054a6] flex items-center gap-2">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        ការជូនដំណឹង
+                    </h3>
+                    <button onclick="toggleNotifications()" class="p-2 hover:bg-gray-200 rounded-full transition">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <div id="notifList" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+                    <!-- Notifications will be injected here -->
+                </div>
+            </div>
+
         </main>
 
         <nav id="bottomNav" class="bottom-nav hidden">
@@ -228,30 +306,32 @@
         const monthsLabel = { 'nov': 'វិច្ឆិកា', 'dec': 'ធ្នូ', 'jan': 'មករា', 'feb': 'កុម្ភៈ', 'mar': 'មីនា', 'apr': 'មេសា', 'may': 'ឧសភា', 'jun': 'មិថុនា', 'jul': 'កក្កដា', 'aug': 'សីហា', 'sep': 'កញ្ញា', 'oct': 'តុលា' };
         const subjectsConfig = [ { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' }, { key: 'kh_read', label: 'ភាសាខ្មែរ (អាន)' }, { key: 'kh_write', label: 'ភាសាខ្មែរ (សរសេរ)' }, { key: 'math_num', label: 'គណិតវិទ្យា (ចំនួន)' }, { key: 'math_meas', label: 'គណិត (រង្វាស់រង្វាល់)' }, { key: 'math_geo', label: 'គណិត (ធរណីមាត្រ)' }, { key: 'math_alg', label: 'គណិត (ពីជគណិត)' }, { key: 'math_stat', label: 'គណិត (ស្ថិតិ)' }, { key: 'sci_phy', label: 'រូបវិទ្យា' }, { key: 'sci_chem', label: 'គីមីវិទ្យា' }, { key: 'sci_bio', label: 'ជីវវិទ្យា' }, { key: 'sci_earth', label: 'ផែនដីវិទ្យា' }, { key: 'soc_ethic', label: 'សីលធម៌' }, { key: 'soc_geo', label: 'ភូមិវិទ្យា' }, { key: 'soc_hist', label: 'ប្រវត្តិវិទ្យា' }, { key: 'soc_home', label: 'គេហវិទ្យា' }, { key: 'pe_sport', label: 'កីឡា' }, { key: 'life_skill', label: 'បំណិនជីវិត' }, { key: 'foreign', label: 'ភាសាបរទេស' } ];
 
-        let currentStudent = null; let loggedTeacherId = null; let scoresCache = {}; let attendanceData = { P: 0, L: 0, A: 0 }; let trendChartObj = null;
+        let currentStudent = null; let loggedTeacherId = null; 
+        let scoresCache = {}; let hwCache = {}; 
+        let attendanceData = { P: 0, L: 0, A: 0 }; 
+        let attendanceHistoryRaw = {}; let seatingLayoutRaw = {};
+        let trendChartObj = null;
+        
+        let generatedNotifications = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
             populateMonthSelect();
+            setTodayDateDisplay();
             
-            // 1. ចាប់យកទិន្នន័យពី Link ភ្លាមៗ 
             const urlParams = new URLSearchParams(window.location.search);
             const urlTid = urlParams.get('tid');
             const urlSid = urlParams.get('sid');
             
             if (urlTid && urlSid) {
-                // បញ្ចូលទិន្នន័យចូលប្រអប់
                 document.getElementById('loginTeacherCode').value = urlTid;
                 document.getElementById('loginStudentId').value = urlSid;
-                // រក្សា Loader ឱ្យដំណើរការកុំឱ្យលោតផ្ទាំង Login ចេញមក
                 document.getElementById('globalLoader').style.display = 'flex';
             }
 
             try {
-                // 2. ភ្ជាប់ទៅ Firebase
                 await signInAnonymously(auth);
                 
-                // 3. ដំណើរការ Auto Login
                 if (urlTid && urlSid) {
                     await window.authenticateParent();
                 } else {
@@ -277,6 +357,12 @@
             const jsMap = { 0:'jan', 1:'feb', 2:'mar', 3:'apr', 4:'may', 5:'jun', 6:'jul', 7:'aug', 8:'sep', 9:'oct', 10:'nov', 11:'dec' };
             const mCode = jsMap[new Date().getMonth()];
             if (monthsOrder.includes(mCode)) select.value = mCode;
+        }
+
+        function setTodayDateDisplay() {
+            const today = new Date();
+            const khmerMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+            document.getElementById('todayAttDate').innerText = `${today.getDate()} ${khmerMonths[today.getMonth()]}`;
         }
 
         window.authenticateParent = async function() {
@@ -309,9 +395,8 @@
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('dashboardScreen').style.display = 'flex';
                     document.getElementById('bottomNav').style.display = 'flex';
-                    document.getElementById('btnLogout').classList.remove('hidden');
+                    document.getElementById('headerActions').classList.remove('hidden');
                     
-                    // លុបកូដសម្ងាត់ចេញពី Link ខាងលើ Browser ពេល Login ជោគជ័យ
                     window.history.replaceState({}, document.title, window.location.pathname);
                 } else {
                     errorDiv.innerText = "រកមិនឃើញទិន្នន័យ! សូមពិនិត្យលេខកូដ និងអត្តលេខឡើងវិញ។";
@@ -333,48 +418,67 @@
             await loadStudentData();
             renderScores();
             renderTrendChart();
+            processNotifications(); // Re-process notifications if year changes
             document.getElementById('globalLoader').style.display = 'none';
         }
 
         async function loadStudentData() {
             const year = document.getElementById('scoreYear').value || '2025-2026';
             scoresCache = {};
+            hwCache = {};
             
+            // 1. Load Scores and Homework
             await Promise.all(monthsOrder.map(async (month) => {
                 const docId = `${year}_${month}`;
-                let monthData = {};
                 
-                // ព្យាយាមទាញយកពី Path ថ្មី
+                // Fetch Scores
+                let monthData = {};
                 const sRefNew = doc(db, 'artifacts', PTEC_APP_ID, 'users', loggedTeacherId, 'scores', docId);
                 const snapNew = await getDoc(sRefNew).catch(()=>null);
-                
-                if (snapNew && snapNew.exists()) {
-                    monthData = snapNew.data();
-                } else {
-                    // បើរកមិនឃើញ ព្យាយាមទាញយកពី Path ចាស់ (Fallback)
+                if (snapNew && snapNew.exists()) { monthData = snapNew.data(); } 
+                else {
                     const oldSnap = await getDoc(doc(db, "scores", docId)).catch(()=>null);
-                    if (oldSnap && oldSnap.exists()) {
-                        monthData = oldSnap.data();
-                    }
+                    if (oldSnap && oldSnap.exists()) monthData = oldSnap.data();
                 }
                 scoresCache[month] = monthData;
+
+                // Fetch Homework
+                let hwData = {};
+                const hwKey = `hw_scores_v2_${year}_${month}`;
+                const hwRef = doc(db, "homework_scores", hwKey);
+                const hwSnap = await getDoc(hwRef).catch(()=>null);
+                if (hwSnap && hwSnap.exists() && hwSnap.data().scores) {
+                    hwData = hwSnap.data().scores;
+                }
+                hwCache[month] = hwData;
             }));
 
+            // 2. Load Class Data (Attendance & Seating)
             attendanceData = { P: 0, L: 0, A: 0 };
+            attendanceHistoryRaw = {};
+            seatingLayoutRaw = {};
+
             try {
                 const metaSnap = await getDoc(doc(db, "users", loggedTeacherId, "data", "metadata")).catch(()=>null);
                 let classId = metaSnap && metaSnap.exists() && metaSnap.data().currentClassId ? metaSnap.data().currentClassId : 'default';
                 const classSnap = await getDoc(doc(db, "users", loggedTeacherId, "data", `class_${classId}`)).catch(()=>null);
-                if (classSnap && classSnap.exists() && classSnap.data().attendanceHistory) {
-                    const attHist = classSnap.data().attendanceHistory;
-                    Object.keys(attHist).forEach(date => {
-                        const myRec = attHist[date][currentStudent.id] || attHist[date][currentStudent.uid];
-                        if (myRec) {
-                            if (myRec.status === 'P') attendanceData.P++;
-                            else if (myRec.status === 'L') attendanceData.L++;
-                            else if (myRec.status === 'A') attendanceData.A++;
-                        }
-                    });
+                
+                if (classSnap && classSnap.exists()) {
+                    const data = classSnap.data();
+                    if (data.attendanceHistory) {
+                        attendanceHistoryRaw = data.attendanceHistory;
+                        Object.keys(attendanceHistoryRaw).forEach(date => {
+                            const myRec = attendanceHistoryRaw[date][currentStudent.id] || attendanceHistoryRaw[date][currentStudent.uid];
+                            if (myRec) {
+                                if (myRec.status === 'P') attendanceData.P++;
+                                else if (myRec.status === 'L') attendanceData.L++;
+                                else if (myRec.status === 'A') attendanceData.A++;
+                            }
+                        });
+                    }
+                    if (data.seatingLayout) {
+                        seatingLayoutRaw = data.seatingLayout;
+                    }
                 }
             } catch(e) {}
         }
@@ -390,8 +494,221 @@
             document.getElementById('stFather').innerText = currentStudent.father || '-';
             document.getElementById('stMother').innerText = currentStudent.mother || '-';
             document.getElementById('stAddress').innerText = [currentStudent.currVillage, currentStudent.currCommune, currentStudent.currDistrict, currentStudent.currProvince].filter(Boolean).join(', ') || '-';
-            document.getElementById('attP').innerText = attendanceData.P; document.getElementById('attL').innerText = attendanceData.L; document.getElementById('attA').innerText = attendanceData.A;
-            renderScores(); renderTrendChart();
+            
+            document.getElementById('attP').innerText = attendanceData.P; 
+            document.getElementById('attL').innerText = attendanceData.L; 
+            document.getElementById('attA').innerText = attendanceData.A;
+
+            setupTodayAttendance();
+            setupSeatingPlan();
+            renderScores(); 
+            renderTrendChart();
+            
+            // Generate Notifications after all data is ready
+            processNotifications();
+        }
+
+        // Helper Function to calculate Rank safely without duplicating too much code
+        function getStudentRankByMonth(monthKey) {
+            const allMonthScores = scoresCache[monthKey] || {};
+            let studentAverages = [];
+            
+            Object.keys(allMonthScores).forEach(uid => {
+                let sTotal = 0, sCount = 0;
+                subjectsConfig.forEach(subj => {
+                    const val = allMonthScores[uid][subj.key];
+                    if (val !== null && val !== undefined && val !== "") {
+                        const num = parseFloat(val);
+                        if (!isNaN(num)) { sTotal += num; sCount++; }
+                    }
+                });
+                if (sCount > 0) studentAverages.push({ uid: uid, avg: sTotal / sCount });
+            });
+
+            if (studentAverages.length === 0) return 0;
+            
+            studentAverages.sort((a, b) => b.avg - a.avg);
+            const myAvgObj = studentAverages.find(s => s.uid === currentStudent.id || s.uid === currentStudent.uid);
+            
+            return myAvgObj ? studentAverages.findIndex(s => s.avg === myAvgObj.avg) + 1 : 0;
+        }
+
+        // --- Notification Logic ---
+        function processNotifications() {
+            generatedNotifications = [];
+            
+            // 1. Process Absences (អវត្តមាន)
+            // Sort dates descending to show newest first
+            const sortedDates = Object.keys(attendanceHistoryRaw).sort((a, b) => new Date(b) - new Date(a));
+            
+            sortedDates.forEach(date => {
+                const rec = attendanceHistoryRaw[date][currentStudent.id] || attendanceHistoryRaw[date][currentStudent.uid];
+                if (rec && rec.status === 'A') {
+                    generatedNotifications.push({
+                        id: `absent_${date}`,
+                        type: 'alert',
+                        title: 'កត់សម្គាល់៖ អវត្តមាន',
+                        message: `នៅថ្ងៃទី ${date} កូនរបស់អ្នកបានអវត្តមានដោយមិនមានច្បាប់អនុញ្ញាត។`,
+                        icon: 'alert-triangle',
+                        colorClass: 'text-red-600 bg-red-100',
+                        dateValue: new Date(date) // For sorting later
+                    });
+                }
+            });
+
+            // 2. Process Scores & Kudos (Top 5)
+            monthsOrder.forEach(m => {
+                const myScores = scoresCache[m] ? (scoresCache[m][currentStudent.id] || scoresCache[m][currentStudent.uid]) : null;
+                
+                // If student has scores for this month
+                if (myScores && Object.keys(myScores).length > 0) {
+                    // Check if they have at least one valid number score
+                    const hasValidScore = subjectsConfig.some(subj => myScores[subj.key] !== null && myScores[subj.key] !== "" && !isNaN(parseFloat(myScores[subj.key])));
+                    
+                    if (hasValidScore) {
+                        // Create a fake date for sorting (end of the month approx)
+                        const year = document.getElementById('scoreYear').value.split('-')[0]; // Simple approx
+                        
+                        generatedNotifications.push({
+                            id: `score_${m}`,
+                            type: 'info',
+                            title: 'ពិន្ទុថ្មីបានចេញ',
+                            message: `របាយការណ៍ពិន្ទុសម្រាប់ខែ ${monthsLabel[m]} ត្រូវបានធ្វើបច្ចុប្បន្នភាពរួចរាល់។`,
+                            icon: 'file-text',
+                            colorClass: 'text-blue-600 bg-blue-100',
+                            dateValue: new Date(`${year}-01-01`) // Fake date, we'll force these to top
+                        });
+
+                        // Check Rank for Kudos
+                        const rank = getStudentRankByMonth(m);
+                        if (rank > 0 && rank <= 5) {
+                            generatedNotifications.push({
+                                id: `kudos_${m}`,
+                                type: 'success',
+                                title: 'អបអរសាទរ! (Top 5)',
+                                message: `ក្នុងខែ ${monthsLabel[m]} នេះ កូនរបស់អ្នកទទួលបានចំណាត់ថ្នាក់លេខ ${rank} ប្រចាំថ្នាក់!`,
+                                icon: 'award',
+                                colorClass: 'text-green-600 bg-green-100',
+                                dateValue: new Date(`${year}-01-02`) // Force above regular score
+                            });
+                        }
+                    }
+                }
+            });
+
+            renderNotificationList();
+        }
+
+        function renderNotificationList() {
+            const notifListEl = document.getElementById('notifList');
+            const badgeEl = document.getElementById('notifBadge');
+            
+            if (generatedNotifications.length === 0) {
+                notifListEl.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 opacity-60 pt-10">
+                        <i data-lucide="bell-off" class="w-12 h-12 mb-2"></i>
+                        <p class="font-bold text-sm">មិនមានការជូនដំណឹងថ្មីទេ</p>
+                    </div>
+                `;
+                badgeEl.classList.add('hidden');
+            } else {
+                badgeEl.classList.remove('hidden');
+                
+                // Sort conceptually: Kudos > New Scores > Recent Absences
+                // For simplicity, we just reverse the array so newest (absences) or last processed (latest month scores) are top
+                let html = '';
+                generatedNotifications.reverse().forEach(n => {
+                    html += `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4">
+                            <div class="w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${n.colorClass}">
+                                <i data-lucide="${n.icon}" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm mb-1">${n.title}</h4>
+                                <p class="text-xs text-gray-500 leading-relaxed">${n.message}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                notifListEl.innerHTML = html;
+            }
+            lucide.createIcons();
+        }
+
+        // Function to open/close the sliding notification panel
+        window.toggleNotifications = function() {
+            const panel = document.getElementById('notifPanel');
+            if (panel.classList.contains('notif-closed')) {
+                panel.classList.remove('notif-closed');
+                panel.classList.add('notif-open');
+                // Hide badge when opened (marking as read visually)
+                document.getElementById('notifBadge').classList.add('hidden');
+            } else {
+                panel.classList.add('notif-closed');
+                panel.classList.remove('notif-open');
+            }
+        }
+
+        // --- Remaining Existing Functions ---
+        function setupTodayAttendance() {
+            const localDate = new Date();
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
+            const record = attendanceHistoryRaw[todayStr]?.[currentStudent.id] || attendanceHistoryRaw[todayStr]?.[currentStudent.uid];
+            
+            const iconBox = document.getElementById('todayAttIcon');
+            const textBox = document.getElementById('todayAttText');
+
+            if (record) {
+                if (record.status === 'P') {
+                    iconBox.className = "w-12 h-12 rounded-full flex items-center justify-center bg-green-100 text-green-600";
+                    iconBox.innerHTML = '<i data-lucide="check-circle" class="w-6 h-6"></i>';
+                    textBox.innerText = "មានវត្តមាន (មក)";
+                    textBox.className = "font-bold text-sm text-green-600";
+                } else if (record.status === 'L') {
+                    iconBox.className = "w-12 h-12 rounded-full flex items-center justify-center bg-yellow-100 text-yellow-600";
+                    iconBox.innerHTML = '<i data-lucide="file-warning" class="w-6 h-6"></i>';
+                    textBox.innerText = "សុំច្បាប់ (មានច្បាប់)";
+                    textBox.className = "font-bold text-sm text-yellow-600";
+                } else if (record.status === 'A') {
+                    iconBox.className = "w-12 h-12 rounded-full flex items-center justify-center bg-red-100 text-red-600";
+                    iconBox.innerHTML = '<i data-lucide="x-circle" class="w-6 h-6"></i>';
+                    textBox.innerText = "អវត្តមាន (អត់ច្បាប់)";
+                    textBox.className = "font-bold text-sm text-red-600";
+                }
+            } else {
+                iconBox.className = "w-12 h-12 rounded-full flex items-center justify-center bg-gray-100 text-gray-400";
+                iconBox.innerHTML = '<i data-lucide="clock" class="w-6 h-6"></i>';
+                textBox.innerText = "មិនទាន់កត់ត្រា";
+                textBox.className = "font-bold text-sm text-gray-500";
+            }
+            lucide.createIcons();
+        }
+
+        function setupSeatingPlan() {
+            const seatEl = document.getElementById('stSeat');
+            let foundSeat = null;
+
+            for (const [key, uid] of Object.entries(seatingLayoutRaw)) {
+                if (uid === currentStudent.id || uid === currentStudent.uid) {
+                    foundSeat = key; 
+                    break;
+                }
+            }
+
+            if (foundSeat) {
+                const parts = foundSeat.match(/t(\d+)-s(\d+)/);
+                if (parts) {
+                    seatEl.innerText = `តុលេខ ${parts[1]} (លេខ ${parts[2]})`;
+                    seatEl.className = "font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100";
+                }
+            } else {
+                seatEl.innerText = "មិនទាន់រៀបចំ";
+                seatEl.className = "font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg";
+            }
         }
 
         window.renderScores = function() {
@@ -399,9 +716,9 @@
             const month = document.getElementById('scoreMonth').value;
             const allMonthScores = scoresCache[month] || {};
             
-            // ប្រើទាំង ID និង UID ដើម្បីធានាថាមិនបាត់ទិន្នន័យ
             const myScores = allMonthScores[currentStudent.id] || allMonthScores[currentStudent.uid] || {};
             
+            // Render Subjects
             const listEl = document.getElementById('subjectScoresList');
             let html = '', total = 0, count = 0;
 
@@ -417,12 +734,54 @@
 
             if (count === 0) {
                 html = `<div class="p-8 text-center text-gray-400 italic font-medium">មិនមានទិន្នន័យពិន្ទុសម្រាប់ខែនេះទេ</div>`;
-                document.getElementById('scoreAvg').innerText = '0.00'; document.getElementById('scoreGrade').innerText = '-';
+                document.getElementById('scoreAvg').innerText = '0.00'; 
+                document.getElementById('scoreGrade').innerText = '-';
+                document.getElementById('scoreRank').innerText = '-';
             } else {
-                const avg = total / count; document.getElementById('scoreAvg').innerText = avg.toFixed(2);
+                const avg = total / count; 
+                document.getElementById('scoreAvg').innerText = avg.toFixed(2);
                 document.getElementById('scoreGrade').innerText = avg >= 9.0 ? 'A' : avg >= 8.0 ? 'B' : avg >= 7.0 ? 'C' : avg >= 6.0 ? 'D' : 'E';
+                document.getElementById('scoreRank').innerText = getStudentRankByMonth(month);
             }
             listEl.innerHTML = html;
+
+            // Render Homework
+            renderHomework(month);
+        }
+
+        function renderHomework(month) {
+            const hwDataAll = hwCache[month] || {};
+            const myHw = hwDataAll[currentStudent.id] || hwDataAll[currentStudent.uid] || { days: {}, total: 0 };
+            
+            const hwListEl = document.getElementById('homeworkList');
+            const hwEmptyEl = document.getElementById('homeworkEmpty');
+            const hwTotalEl = document.getElementById('hwTotalScore');
+            
+            hwListEl.innerHTML = '';
+            
+            const days = Object.keys(myHw.days || {}).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            if (days.length === 0) {
+                hwListEl.classList.add('hidden');
+                hwEmptyEl.classList.remove('hidden');
+                hwTotalEl.innerText = 'សរុប: 0';
+            } else {
+                hwListEl.classList.remove('hidden');
+                hwEmptyEl.classList.add('hidden');
+                hwTotalEl.innerText = `សរុប: ${myHw.total || 0}`;
+                
+                let hwHtml = '';
+                days.forEach(day => {
+                    const score = myHw.days[day];
+                    hwHtml += `
+                        <div class="hw-day">
+                            <span class="text-[10px] text-pink-400 font-bold">ថ្ងៃ ${day}</span>
+                            <span class="text-sm font-black text-pink-700">${score}</span>
+                        </div>
+                    `;
+                });
+                hwListEl.innerHTML = hwHtml;
+            }
         }
 
         function renderTrendChart() {
@@ -453,7 +812,7 @@
         window.logout = function() {
             sessionStorage.removeItem('ptec_parent_session');
             currentStudent = null; loggedTeacherId = null;
-            document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('dashboardScreen').style.display = 'none'; document.getElementById('bottomNav').style.display = 'none'; document.getElementById('btnLogout').classList.add('hidden');
+            document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('dashboardScreen').style.display = 'none'; document.getElementById('bottomNav').style.display = 'none'; document.getElementById('headerActions').classList.add('hidden');
             document.getElementById('loginTeacherCode').value = ''; document.getElementById('loginStudentId').value = '';
         }
     </script>
