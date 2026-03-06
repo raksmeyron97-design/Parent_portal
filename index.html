@@ -286,7 +286,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Added collection, getDocs for fetching teacher notifications
+        import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBU50HJrekgHWwwyLq5CTRwhjHkGJAAAfs",
@@ -313,6 +314,7 @@
         let trendChartObj = null;
         
         let generatedNotifications = [];
+        let fetchedTeacherNotifications = []; // New array to hold fetched notifications
 
         document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
@@ -418,7 +420,7 @@
             await loadStudentData();
             renderScores();
             renderTrendChart();
-            processNotifications(); // Re-process notifications if year changes
+            processNotifications(); 
             document.getElementById('globalLoader').style.display = 'none';
         }
 
@@ -431,7 +433,6 @@
             await Promise.all(monthsOrder.map(async (month) => {
                 const docId = `${year}_${month}`;
                 
-                // Fetch Scores
                 let monthData = {};
                 const sRefNew = doc(db, 'artifacts', PTEC_APP_ID, 'users', loggedTeacherId, 'scores', docId);
                 const snapNew = await getDoc(sRefNew).catch(()=>null);
@@ -442,7 +443,6 @@
                 }
                 scoresCache[month] = monthData;
 
-                // Fetch Homework
                 let hwData = {};
                 const hwKey = `hw_scores_v2_${year}_${month}`;
                 const hwRef = doc(db, "homework_scores", hwKey);
@@ -481,6 +481,22 @@
                     }
                 }
             } catch(e) {}
+
+            // 3. Load Custom Teacher Notifications
+            fetchedTeacherNotifications = [];
+            try {
+                const notifRef = collection(db, 'artifacts', PTEC_APP_ID, 'users', loggedTeacherId, 'notifications');
+                const notifSnap = await getDocs(notifRef);
+                notifSnap.forEach(doc => {
+                    const data = doc.data();
+                    // FILTERING: Ensure the notification is for "all" OR specifically for this student
+                    if (data.target === 'all' || data.target === currentStudent.id || data.target === currentStudent.uid) {
+                        fetchedTeacherNotifications.push({ docId: doc.id, ...data });
+                    }
+                });
+            } catch(e) {
+                console.error("Error loading teacher notifications:", e);
+            }
         }
 
         function setupDashboard() {
@@ -508,7 +524,6 @@
             processNotifications();
         }
 
-        // Helper Function to calculate Rank safely without duplicating too much code
         function getStudentRankByMonth(monthKey) {
             const allMonthScores = scoresCache[monthKey] || {};
             let studentAverages = [];
@@ -537,10 +552,8 @@
         function processNotifications() {
             generatedNotifications = [];
             
-            // 1. Process Absences (អវត្តមាន)
-            // Sort dates descending to show newest first
-            const sortedDates = Object.keys(attendanceHistoryRaw).sort((a, b) => new Date(b) - new Date(a));
-            
+            // 1. Process Absences (អវត្តមាន) - Auto System Alert
+            const sortedDates = Object.keys(attendanceHistoryRaw);
             sortedDates.forEach(date => {
                 const rec = attendanceHistoryRaw[date][currentStudent.id] || attendanceHistoryRaw[date][currentStudent.uid];
                 if (rec && rec.status === 'A') {
@@ -549,37 +562,36 @@
                         type: 'alert',
                         title: 'កត់សម្គាល់៖ អវត្តមាន',
                         message: `នៅថ្ងៃទី ${date} កូនរបស់អ្នកបានអវត្តមានដោយមិនមានច្បាប់អនុញ្ញាត។`,
-                        icon: 'alert-triangle',
-                        colorClass: 'text-red-600 bg-red-100',
-                        dateValue: new Date(date) // For sorting later
+                        icon: 'user-x',
+                        colorClass: 'text-orange-600 bg-orange-100',
+                        dateValue: new Date(date),
+                        isTeacherCustom: false
                     });
                 }
             });
 
-            // 2. Process Scores & Kudos (Top 5)
+            // 2. Process Scores & Kudos (Top 5) - Auto System Alert
             monthsOrder.forEach(m => {
                 const myScores = scoresCache[m] ? (scoresCache[m][currentStudent.id] || scoresCache[m][currentStudent.uid]) : null;
                 
-                // If student has scores for this month
                 if (myScores && Object.keys(myScores).length > 0) {
-                    // Check if they have at least one valid number score
                     const hasValidScore = subjectsConfig.some(subj => myScores[subj.key] !== null && myScores[subj.key] !== "" && !isNaN(parseFloat(myScores[subj.key])));
                     
                     if (hasValidScore) {
-                        // Create a fake date for sorting (end of the month approx)
-                        const year = document.getElementById('scoreYear').value.split('-')[0]; // Simple approx
+                        const year = document.getElementById('scoreYear').value.split('-')[0];
                         
+                        // Fake a date slightly in the past so it doesn't override real custom notifications
                         generatedNotifications.push({
                             id: `score_${m}`,
                             type: 'info',
                             title: 'ពិន្ទុថ្មីបានចេញ',
                             message: `របាយការណ៍ពិន្ទុសម្រាប់ខែ ${monthsLabel[m]} ត្រូវបានធ្វើបច្ចុប្បន្នភាពរួចរាល់។`,
                             icon: 'file-text',
-                            colorClass: 'text-blue-600 bg-blue-100',
-                            dateValue: new Date(`${year}-01-01`) // Fake date, we'll force these to top
+                            colorClass: 'text-slate-600 bg-slate-200',
+                            dateValue: new Date(`${year}-01-01`),
+                            isTeacherCustom: false
                         });
 
-                        // Check Rank for Kudos
                         const rank = getStudentRankByMonth(m);
                         if (rank > 0 && rank <= 5) {
                             generatedNotifications.push({
@@ -587,14 +599,36 @@
                                 type: 'success',
                                 title: 'អបអរសាទរ! (Top 5)',
                                 message: `ក្នុងខែ ${monthsLabel[m]} នេះ កូនរបស់អ្នកទទួលបានចំណាត់ថ្នាក់លេខ ${rank} ប្រចាំថ្នាក់!`,
-                                icon: 'award',
-                                colorClass: 'text-green-600 bg-green-100',
-                                dateValue: new Date(`${year}-01-02`) // Force above regular score
+                                icon: 'medal',
+                                colorClass: 'text-yellow-600 bg-yellow-100',
+                                dateValue: new Date(`${year}-01-02`),
+                                isTeacherCustom: false
                             });
                         }
                     }
                 }
             });
+
+            // 3. Process Custom Teacher Notifications (Fetched from Firebase)
+            fetchedTeacherNotifications.forEach(n => {
+                let icon = 'info', colorClass = 'text-blue-600 bg-blue-100 border border-blue-200 shadow-sm';
+                if (n.type === 'alert') { icon = 'alert-triangle'; colorClass = 'text-red-600 bg-red-50 border border-red-200 shadow-sm'; }
+                if (n.type === 'success') { icon = 'award'; colorClass = 'text-green-600 bg-green-50 border border-green-200 shadow-sm'; }
+
+                generatedNotifications.push({
+                    id: n.docId,
+                    type: n.type,
+                    title: n.title,
+                    message: n.message,
+                    icon: icon,
+                    colorClass: colorClass,
+                    dateValue: new Date(n.createdAt), // Use the real timestamp
+                    isTeacherCustom: true
+                });
+            });
+
+            // Sort all notifications by Date (Newest first)
+            generatedNotifications.sort((a, b) => b.dateValue - a.dateValue);
 
             renderNotificationList();
         }
@@ -614,18 +648,36 @@
             } else {
                 badgeEl.classList.remove('hidden');
                 
-                // Sort conceptually: Kudos > New Scores > Recent Absences
-                // For simplicity, we just reverse the array so newest (absences) or last processed (latest month scores) are top
                 let html = '';
-                generatedNotifications.reverse().forEach(n => {
+                generatedNotifications.forEach(n => {
+                    // Format Date for Display
+                    let dateStr = "";
+                    if (n.dateValue && !isNaN(n.dateValue.getTime())) {
+                        const d = n.dateValue;
+                        // Determine if it has time (Custom notifications have exact time)
+                        if (n.isTeacherCustom) {
+                            dateStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()} • ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+                        } else {
+                            dateStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+                        }
+                    }
+
+                    // Special badge if it's explicitly from the teacher
+                    const teacherBadge = n.isTeacherCustom 
+                        ? `<span class="bg-purple-100 text-purple-700 text-[9px] px-2 py-0.5 rounded-full ml-2 border border-purple-200">ផ្ញើពីគ្រូ</span>` 
+                        : '';
+
                     html += `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4">
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 ${n.isTeacherCustom ? 'border-l-4 border-l-blue-500' : ''}">
                             <div class="w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${n.colorClass}">
                                 <i data-lucide="${n.icon}" class="w-5 h-5"></i>
                             </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-sm mb-1">${n.title}</h4>
-                                <p class="text-xs text-gray-500 leading-relaxed">${n.message}</p>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <h4 class="font-bold text-gray-800 text-sm flex items-center">${n.title} ${teacherBadge}</h4>
+                                </div>
+                                <p class="text-xs text-gray-500 leading-relaxed mb-2">${n.message}</p>
+                                <span class="text-[10px] text-gray-400 font-mono"><i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>${dateStr}</span>
                             </div>
                         </div>
                     `;
@@ -635,13 +687,11 @@
             lucide.createIcons();
         }
 
-        // Function to open/close the sliding notification panel
         window.toggleNotifications = function() {
             const panel = document.getElementById('notifPanel');
             if (panel.classList.contains('notif-closed')) {
                 panel.classList.remove('notif-closed');
                 panel.classList.add('notif-open');
-                // Hide badge when opened (marking as read visually)
                 document.getElementById('notifBadge').classList.add('hidden');
             } else {
                 panel.classList.add('notif-closed');
