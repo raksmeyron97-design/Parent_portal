@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PTEC - ប្រព័ន្ធតាមដានការសិក្សាសម្រាប់មាតាបិតា</title>
-    
+    <meta name="theme-color" content="#0054a6">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Moul&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -865,6 +867,49 @@
             document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('dashboardScreen').style.display = 'none'; document.getElementById('bottomNav').style.display = 'none'; document.getElementById('headerActions').classList.add('hidden');
             document.getElementById('loginTeacherCode').value = ''; document.getElementById('loginStudentId').value = '';
         }
+          window.onload = renderDashboard;
+        // កូដសម្រាប់ដំណើរការការដំឡើង App (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker បានដំណើរការជោគជ័យ'))
+                    .catch(err => console.log('បរាជ័យក្នុងការដំណើរការ Service Worker:', err));
+            });
+        }
+
+        // កូដសម្រាប់គ្រប់គ្រងប៊ូតុង Install PWA ទាំងលើកុំព្យូទ័រ និងទូរស័ព្ទ
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+        const mobileInstallBtn = document.getElementById('mobile-install-btn'); // ប៊ូតុងទូរស័ព្ទ
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // រារាំងកុំឱ្យ Browser លោតផ្ទាំងដោយឯកឯង
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // បង្ហាញប៊ូតុង Install ទាំង២ (ដក class hidden ចេញ)
+            if(installBtn) installBtn.classList.remove('hidden');
+            if(mobileInstallBtn) mobileInstallBtn.classList.remove('hidden');
+        });
+
+        // អនុវត្តសកម្មភាពនៅពេលចុចប៊ូតុងណាមួយ
+        const handleInstallClick = async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('អ្នកប្រើប្រាស់យល់ព្រមដំឡើង');
+                }
+                deferredPrompt = null;
+                // លាក់ប៊ូតុងវិញ
+                if(installBtn) installBtn.classList.add('hidden');
+                if(mobileInstallBtn) mobileInstallBtn.classList.add('hidden');
+            }
+        };
+
+        if(installBtn) installBtn.addEventListener('click', handleInstallClick);
+        if(mobileInstallBtn) mobileInstallBtn.addEventListener('click', handleInstallClick);
     </script>
+    
 </body>
 </html>
