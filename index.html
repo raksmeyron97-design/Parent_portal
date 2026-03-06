@@ -44,9 +44,10 @@
         .notif-open { transform: translateX(0); }
         .notif-closed { transform: translateX(100%); }
         
-        /* Scanner specific styles */
-        #reader { border-radius: 12px; overflow: hidden; }
-        #reader video { object-fit: cover; }
+        /* Scanner specific styles (Zoom Effect Added Here) */
+        #reader { border-radius: 12px; overflow: hidden; position: relative; }
+        /* បន្ថែម transform: scale(1.5) ដើម្បី Zoom ចូលកាមេរ៉ាឱ្យជិត */
+        #reader video { object-fit: cover; transform: scale(1.5); transform-origin: center; }
     </style>
 </head>
 <body>
@@ -318,7 +319,7 @@
             </div>
             
             <div class="bg-gray-50 p-2 rounded-2xl border-2 border-dashed border-[#0054a6]">
-                <!-- កន្លែងបង្ហាញកាមេរ៉ា (បានប្តូរទៅជា aspect-square ឱ្យរាងការេ) -->
+                <!-- កន្លែងបង្ហាញកាមេរ៉ា (aspect-square) ឥឡូវមាន zoom Effect -->
                 <div id="reader" class="w-full aspect-square bg-black rounded-xl overflow-hidden relative"></div>
             </div>
         </div>
@@ -343,6 +344,9 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const PTEC_APP_ID = "ptec-app";
+        
+        // បង្កើត Key ថ្មីដើម្បីបញ្ចៀសការគាំង Cache ចាស់ៗនៅក្នុងប្រព័ន្ធ
+        const SESSION_KEY = "ptec_parent_v2"; 
 
         const monthsOrder = ['nov', 'dec', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct'];
         const monthsLabel = { 'nov': 'វិច្ឆិកា', 'dec': 'ធ្នូ', 'jan': 'មករា', 'feb': 'កុម្ភៈ', 'mar': 'មីនា', 'apr': 'មេសា', 'may': 'ឧសភា', 'jun': 'មិថុនា', 'jul': 'កក្កដា', 'aug': 'សីហា', 'sep': 'កញ្ញា', 'oct': 'តុលា' };
@@ -379,16 +383,28 @@
                 if (urlTid && urlSid) {
                     await window.authenticateParent();
                 } else {
-                    // ប្រើ localStorage ជំនួស sessionStorage ដើម្បីរក្សាទុកការចូល
-                    const savedSession = localStorage.getItem('ptec_parent_session');
+                    // ទាញយក Session ពី localStorage ដោយសុវត្ថិភាព
+                    let savedSession = null;
+                    try {
+                        savedSession = localStorage.getItem(SESSION_KEY);
+                    } catch(e) { console.warn("Storage restricted", e); }
+                    
                     if (savedSession) {
                         const data = JSON.parse(savedSession);
-                        document.getElementById('loginTeacherCode').value = data.tid;
-                        document.getElementById('loginStudentId').value = data.sid;
-                        await window.authenticateParent();
-                    } else {
-                        document.getElementById('globalLoader').style.display = 'none';
+                        if (data && data.tid && data.sid) {
+                            document.getElementById('loginTeacherCode').value = data.tid;
+                            document.getElementById('loginStudentId').value = data.sid;
+                            
+                            // ដាក់ការពន្យារពេលបន្តិច ដើម្បីកុំឱ្យមានបញ្ហាពេល Firebase កំពុងរៀបចំ
+                            setTimeout(() => {
+                                window.authenticateParent();
+                            }, 500);
+                            return; // បញ្ឈប់នៅត្រង់នេះដើម្បីកុំឱ្យ Loader បាត់មុនពេល Login ជោគជ័យ
+                        }
                     }
+                    
+                    // បើគ្មានទិន្នន័យចាស់ទេ លាក់ Loader
+                    document.getElementById('globalLoader').style.display = 'none';
                 }
             } catch (error) {
                 console.error("Auth init failed", error);
@@ -419,7 +435,8 @@
                 html5QrCode = new Html5Qrcode("reader");
             }
             
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            // បន្ថយទំហំ qrbox បន្តិចដើម្បីស៊ីគ្នាជាមួយការ Scale Zoom ក្នុង CSS 
+            const config = { fps: 10, qrbox: { width: 200, height: 200 }, aspectRatio: 1.0 };
             
             html5QrCode.start({ facingMode: "environment" }, config, window.onScanSuccess)
             .catch(err => {
@@ -492,7 +509,9 @@
                     loggedTeacherId = tCode;
                     
                     // ប្រើ localStorage ដើម្បីកុំឱ្យបាត់ពេលបិទ web
-                    localStorage.setItem('ptec_parent_session', JSON.stringify({ tid: tCode, sid: sId }));
+                    try {
+                        localStorage.setItem(SESSION_KEY, JSON.stringify({ tid: tCode, sid: sId }));
+                    } catch(e) {}
                     
                     await loadStudentData();
                     setupDashboard();
@@ -502,6 +521,7 @@
                     document.getElementById('bottomNav').style.display = 'flex';
                     document.getElementById('headerActions').classList.remove('hidden');
                     
+                    // លុបប៉ារ៉ាម៉ែត្រចេញពី URL កុំឱ្យវានៅជាប់
                     window.history.replaceState({}, document.title, window.location.pathname);
                 } else {
                     errorDiv.innerText = "រកមិនឃើញទិន្នន័យ! សូមពិនិត្យលេខកូដ និងអត្តលេខឡើងវិញ។";
@@ -964,7 +984,9 @@
 
         window.logout = function() {
             // លុបពី localStorage វិញពេលចុចចេញ
-            localStorage.removeItem('ptec_parent_session');
+            try {
+                localStorage.removeItem(SESSION_KEY);
+            } catch(e) {}
             currentStudent = null; loggedTeacherId = null;
             document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('dashboardScreen').style.display = 'none'; document.getElementById('bottomNav').style.display = 'none'; document.getElementById('headerActions').classList.add('hidden');
             document.getElementById('loginTeacherCode').value = ''; document.getElementById('loginStudentId').value = '';
